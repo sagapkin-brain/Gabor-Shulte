@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gabor–Schulte">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%231a1a2e'/%3E%3Ctext x='50%25' y='58%25' font-size='110' text-anchor='middle' dominant-baseline='middle'%3E%F0%9F%94%AC%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.json">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Gabor–Schulte</title>
+<style>
+  :root {
+    --bg: #1a1a2e; --surface: #16213e; --surface2: #0f3460;
+    --accent: #e94560; --accent2: #c73652; --text: #eaeaea; --text2: #a0a0c0;
+    --correct: #4caf50; --wrong: #f44336; --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; }
+  .screen { display: none; width: 100%; max-width: 480px; min-height: 100vh; flex-direction: column; align-items: center; padding: 16px; }
+  .screen.active { display: flex; }
+
+  /* HOME */
+  .logo { font-size: 2rem; font-weight: 800; color: var(--accent); margin: 36px 0 6px; letter-spacing: 1px; }
+  .tagline { color: var(--text2); font-size: 0.9rem; margin-bottom: 28px; text-align: center; }
+  .mode-cards { display: flex; gap: 12px; width: 100%; margin-bottom: 20px; }
+  .mode-card {
+    flex: 1; background: var(--surface); border-radius: var(--radius); padding: 20px 14px;
+    border: 2px solid transparent; cursor: pointer; text-align: center; transition: all 0.2s;
+  }
+  .mode-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .mode-card .mc-icon { font-size: 2rem; margin-bottom: 8px; }
+  .mode-card .mc-title { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .mode-card .mc-desc { font-size: 0.75rem; color: var(--text2); line-height: 1.4; }
+  .btn {
+    width: 100%; max-width: 280px; padding: 14px 24px;
+    background: var(--accent); color: white; border: none;
+    border-radius: var(--radius); font-size: 1rem; font-weight: 600;
+    cursor: pointer; margin: 6px 0; transition: all 0.2s;
+    box-shadow: 0 4px 15px rgba(233,69,96,0.35);
+  }
+  .btn:hover { background: var(--accent2); transform: translateY(-2px); }
+  .btn.secondary { background: var(--surface2); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+  .btn.secondary:hover { background: #1a4a80; }
+  .btn.danger { background: #b71c1c; box-shadow: none; }
+  .btn.danger:hover { background: #c62828; }
+
+  /* GAME SCREEN */
+  #gameScreen { padding: 8px; }
+  .game-header { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 6px 2px; margin-bottom: 6px; gap: 8px; }
+  .mode-badge { background: var(--surface2); color: var(--text2); border-radius: 8px; padding: 4px 10px; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+  .mode-badge.test { background: #1a3a5c; color: #64b5f6; }
+  .mode-badge.game { background: #2d1b2e; color: #ce93d8; }
+  .timer-box { display: flex; flex-direction: column; align-items: center; background: var(--surface); border-radius: 10px; padding: 6px 14px; }
+  .timer-label { font-size: 0.6rem; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; }
+  .timer-value { font-size: 1.5rem; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; min-width: 60px; text-align: center; }
+  .stats-box { display: flex; gap: 8px; }
+  .stat-item { display: flex; flex-direction: column; align-items: center; background: var(--surface); border-radius: 10px; padding: 6px 12px; }
+  .stat-label { font-size: 0.6rem; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; }
+  .stat-value { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+
+  /* Progress bar (test mode) */
+  .progress-bar-wrap { width: 100%; background: var(--surface); border-radius: 6px; height: 6px; margin-bottom: 8px; overflow: hidden; }
+  .progress-bar { height: 100%; background: var(--accent); border-radius: 6px; transition: width 0.3s; }
+
+  /* center cell IS the target - see .grid-cell.center-cell */
+
+  .grid-container { display: grid; gap: 6px; margin: 0 auto; }
+  .grid-cell {
+    background: white; border-radius: 8px; cursor: pointer; position: relative;
+    overflow: hidden; transition: transform 0.12s, box-shadow 0.12s;
+    border: 2px solid transparent;
+  }
+  .grid-cell:hover { transform: scale(1.05); box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
+  .grid-cell.center-cell { border: 3px solid var(--accent) !important; box-shadow: 0 0 18px rgba(233,69,96,0.6) !important; cursor: default; }
+  .grid-cell.center-cell:hover { transform: none !important; }
+  .grid-cell.found { opacity: 0.35; cursor: default; pointer-events: none; }
+  .grid-cell.found:hover { transform: none; }
+  .grid-cell.flash-correct { animation: flashGreen 0.45s ease-out; }
+  .grid-cell.flash-wrong  { animation: flashRed 0.35s ease-out; }
+  @keyframes flashGreen {
+    0%   { box-shadow: 0 0 0 0 rgba(76,175,80,0.9); }
+    50%  { box-shadow: 0 0 0 10px rgba(76,175,80,0.5); transform: scale(1.08); }
+    100% { box-shadow: 0 0 0 0 rgba(76,175,80,0); }
+  }
+  @keyframes flashRed {
+    0%,100% { transform: translateX(0); }
+    25%     { transform: translateX(-5px); }
+    75%     { transform: translateX(5px); }
+  }
+
+  .game-footer { display: flex; gap: 10px; margin-top: 10px; width: 100%; }
+  .game-footer .btn { margin: 0; padding: 12px; font-size: 0.9rem; flex: 1; }
+
+  /* Live find-counter strip */
+  .find-strip { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; width: 100%; margin-bottom: 6px; }
+  .find-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--surface2); transition: background 0.2s; }
+  .find-dot.done { background: var(--correct); }
+  .find-dot.error { background: var(--wrong); }
+
+  /* SETTINGS */
+  .settings-title { font-size: 1.4rem; font-weight: 700; margin: 18px 0 20px; color: var(--accent); }
+  .setting-group { width: 100%; margin-bottom: 18px; }
+  .setting-group-label { font-size: 0.78rem; text-transform: uppercase; color: var(--text2); letter-spacing: 1px; margin-bottom: 8px; }
+  .toggle-group { display: flex; flex-wrap: wrap; gap: 7px; }
+  .toggle-btn { padding: 9px 16px; border-radius: 20px; border: 2px solid var(--surface2); background: var(--surface); color: var(--text2); cursor: pointer; font-size: 0.88rem; transition: all 0.2s; }
+  .toggle-btn.active { background: var(--accent); border-color: var(--accent); color: white; font-weight: 600; }
+
+  /* STATS */
+  .stats-title { font-size: 1.4rem; font-weight: 700; margin: 18px 0 20px; color: var(--accent); }
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-bottom: 20px; }
+  .stats-card { background: var(--surface); border-radius: var(--radius); padding: 14px; text-align: center; }
+  .stats-card-value { font-size: 1.7rem; font-weight: 800; color: var(--accent); }
+  .stats-card-label { font-size: 0.72rem; color: var(--text2); margin-top: 3px; }
+  #historyCanvas { width: 100%; border-radius: var(--radius); background: var(--surface); }
+  .session-list { width: 100%; max-height: 260px; overflow-y: auto; margin-top: 14px; }
+  .session-item { display: flex; justify-content: space-between; align-items: center; padding: 9px 13px; background: var(--surface); border-radius: 8px; margin-bottom: 5px; }
+  .session-num { color: var(--text2); font-size: 0.82rem; }
+  .session-time { font-weight: 600; }
+  .session-meta { color: var(--text2); font-size: 0.8rem; }
+
+  /* RESULT OVERLAY (end of test) */
+  .result-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+  .result-overlay.show { opacity: 1; pointer-events: all; }
+  .result-box { background: var(--surface); border-radius: 20px; padding: 30px 26px; text-align: center; max-width: 310px; width: 92%; transform: scale(0.85); transition: transform 0.3s; border: 1px solid var(--surface2); }
+  .result-overlay.show .result-box { transform: scale(1); }
+  .result-box h2 { font-size: 1.5rem; color: var(--accent); margin-bottom: 6px; }
+  .result-big { font-size: 2.8rem; font-weight: 800; margin: 10px 0 4px; }
+  .result-sub { color: var(--text2); font-size: 0.9rem; margin-bottom: 20px; }
+  .result-row { display: flex; justify-content: space-between; background: var(--surface2); border-radius: 8px; padding: 8px 14px; margin-bottom: 8px; }
+  .result-row span { font-size: 0.9rem; color: var(--text2); }
+  .result-row strong { color: var(--text); }
+
+  .lang-btn { position: fixed; top: 12px; right: 12px; z-index: 200; background: var(--surface2); color: var(--text); border: none; border-radius: 8px; padding: 5px 11px; cursor: pointer; font-size: 0.78rem; }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<button class="lang-btn" id="langBtn" onclick="toggleLang()">EN</button>
+
+<!-- HOME -->
+<div class="screen active" id="homeScreen">
+  <div class="logo">🔬 Gabor–Schulte</div>
+  <div class="tagline" id="tagline">Тренировка зрительного внимания</div>
+
+  <div class="mode-cards">
+    <div class="mode-card" onclick="startGame('test')">
+      <div class="mc-icon">🎯</div>
+      <div class="mc-title" id="mcTestTitle">Тест</div>
+      <div class="mc-desc" id="mcTestDesc">N ячеек — N находок подряд. Результат записывается.</div>
+    </div>
+    <div class="mode-card" onclick="startGame('game')">
+      <div class="mc-icon">🕹️</div>
+      <div class="mc-title" id="mcGameTitle">Игра</div>
+      <div class="mc-desc" id="mcGameDesc">Бесконечный поток. Сетка обновляется после каждой находки. Стоп — запись результата.</div>
+    </div>
+  </div>
+
+  <button class="btn secondary" onclick="showScreen('settingsScreen')" id="btnSettings">⚙️ Настройки</button>
+  <button class="btn secondary" onclick="showScreen('statsScreen'); renderHistory();" id="btnStats">📊 Статистика</button>
+</div>
+
+<!-- GAME SCREEN -->
+<div class="screen" id="gameScreen">
+  <div class="game-header">
+    <div class="mode-badge" id="modeBadge">ТЕСТ</div>
+    <div class="timer-box">
+      <div class="timer-label" id="lbTimer">Время</div>
+      <div class="timer-value" id="timerDisplay">0.0</div>
+    </div>
+    <div class="stats-box">
+      <div class="stat-item">
+        <div class="stat-label" id="lbFound">Найдено</div>
+        <div class="stat-value" id="foundDisplay">0</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label" id="lbErrors">Ошибки</div>
+        <div class="stat-value" id="errorsDisplay">0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress (test only) -->
+  <div class="progress-bar-wrap" id="progressWrap">
+    <div class="progress-bar" id="progressBar" style="width:0%"></div>
+  </div>
+
+  <!-- Find dots strip -->
+  <div class="find-strip" id="findStrip"></div>
+
+  <div id="gridWrapper">
+    <div class="grid-container" id="gridContainer"></div>
+  </div>
+
+  <div class="game-footer">
+    <button class="btn secondary" onclick="stopAndGoHome()" id="btnBack">← Назад</button>
+    <button class="btn danger" onclick="stopAndSave()" id="btnStop" style="display:none">⏹ Стоп</button>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="screen" id="settingsScreen">
+  <div class="settings-title" id="lbSettingsTitle">Настройки</div>
+
+  <div class="setting-group">
+    <div class="setting-group-label" id="lbGridSize">Размер сетки</div>
+    <div class="toggle-group" id="gridSizeGroup">
+      <button class="toggle-btn" onclick="setSetting('gridSize',3,this)">3×3</button>
+      <button class="toggle-btn active" onclick="setSetting('gridSize',5,this)">5×5</button>
+      <button class="toggle-btn" onclick="setSetting('gridSize',7,this)">7×7</button>
+    </div>
+  </div>
+
+  <div class="setting-group">
+    <div class="setting-group-label" id="lbColorMode">Цветовая гамма</div>
+    <div class="toggle-group">
+      <button class="toggle-btn" onclick="setSetting('colorMode','blue',this)">🔵 Синий</button>
+      <button class="toggle-btn" onclick="setSetting('colorMode','green',this)">🟢 Зелёный</button>
+      <button class="toggle-btn" onclick="setSetting('colorMode','red',this)">🔴 Красный</button>
+      <button class="toggle-btn active" onclick="setSetting('colorMode','all',this)">🌈 Все</button>
+      <button class="toggle-btn" onclick="setSetting('colorMode','gray',this)">⬜ Серый</button>
+    </div>
+  </div>
+
+  <div class="setting-group">
+    <div class="setting-group-label" id="lbShapeMode">Наложенные фигуры</div>
+    <div class="toggle-group">
+      <button class="toggle-btn" onclick="setSetting('shapeMode','circle',this)">⭕ Круг</button>
+      <button class="toggle-btn" onclick="setSetting('shapeMode','square',this)">🔲 Квадрат</button>
+      <button class="toggle-btn" onclick="setSetting('shapeMode','triangle',this)">🔺 Треуг.</button>
+      <button class="toggle-btn" onclick="setSetting('shapeMode','star',this)">⭐ Звезда</button>
+      <button class="toggle-btn active" onclick="setSetting('shapeMode','all',this)">🎲 Все</button>
+      <button class="toggle-btn" onclick="setSetting('shapeMode','none',this)">🚫 Нет</button>
+    </div>
+  </div>
+
+  <div class="setting-group">
+    <div class="setting-group-label" id="lbDiffLabel">Сложность (похожих дистракторов)</div>
+    <div class="toggle-group" id="diffGroup">
+      <button class="toggle-btn active" onclick="setSetting('difficulty','easy',this)" id="diffEasy">Лёгкая</button>
+      <button class="toggle-btn" onclick="setSetting('difficulty','medium',this)" id="diffMed">Средняя</button>
+      <button class="toggle-btn" onclick="setSetting('difficulty','hard',this)" id="diffHard">Сложная</button>
+    </div>
+  </div>
+
+  <button class="btn" onclick="showScreen('homeScreen')" style="margin-top:18px;" id="btnSaveSett">✓ Сохранить</button>
+</div>
+
+<!-- STATS -->
+<div class="screen" id="statsScreen">
+  <div class="stats-title" id="lbStatsTitle">Статистика</div>
+  <div class="stats-grid">
+    <div class="stats-card"><div class="stats-card-value" id="statBest">—</div><div class="stats-card-label" id="lbBest">Лучшее время</div></div>
+    <div class="stats-card"><div class="stats-card-value" id="statAvg">—</div><div class="stats-card-label" id="lbAvg">Среднее</div></div>
+    <div class="stats-card"><div class="stats-card-value" id="statSessions">0</div><div class="stats-card-label" id="lbSessions">Сессий</div></div>
+    <div class="stats-card"><div class="stats-card-value" id="statAcc">—</div><div class="stats-card-label" id="lbAcc">Точность</div></div>
+  </div>
+  <canvas id="historyCanvas" height="160"></canvas>
+  <div class="session-list" id="sessionList"></div>
+  <button class="btn secondary" onclick="clearStats()" style="margin-top:12px;" id="btnClearStats">🗑 Сбросить</button>
+  <button class="btn" onclick="showScreen('homeScreen')" style="margin-top:8px;" id="btnBackFromStats">← Назад</button>
+</div>
+
+<!-- RESULT OVERLAY -->
+<div class="result-overlay" id="resultOverlay">
+  <div class="result-box">
+    <h2 id="resTitle">✅ Готово!</h2>
+    <div class="result-big" id="resBigTime">—</div>
+    <div class="result-sub" id="resSub">Общее время</div>
+    <div class="result-row"><span id="resLbFound">Найдено</span><strong id="resFound">—</strong></div>
+    <div class="result-row"><span id="resLbErrors">Ошибок</span><strong id="resErrors">—</strong></div>
+    <div class="result-row"><span id="resLbAcc">Точность</span><strong id="resAcc">—</strong></div>
+    <div class="result-row"><span id="resLbAvgFind">Ср. время на находку</span><strong id="resAvgFind">—</strong></div>
+    <button class="btn" onclick="closeResult(false)" style="margin-top:14px;max-width:100%;" id="resContinue">▶ Ещё раз</button>
+    <button class="btn secondary" onclick="closeResult(true)" style="max-width:100%;margin-top:6px;" id="resHome">← Домой</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const SETTINGS = { gridSize: 5, colorMode: 'all', shapeMode: 'all', difficulty: 'easy' };
+let currentMode = 'test'; // 'test' | 'game'
+
+// ============================================================
+// i18n
+// ============================================================
+let lang = 'ru';
+const T = {
+  ru: {
+    tagline:'Тренировка зрительного внимания',
+    mcTestTitle:'Тест', mcTestDesc:'N ячеек — N находок. Результат записывается.',
+    mcGameTitle:'Игра', mcGameDesc:'Бесконечный поток. Стоп — запись результата.',
+    btnSettings:'⚙️ Настройки', btnStats:'📊 Статистика',
+    lbTimer:'Время', lbFound:'Найдено', lbErrors:'Ошибки',
+    lbFind:'Найди пару →', btnBack:'← Назад', btnStop:'⏹ Стоп',
+    lbSettingsTitle:'Настройки', lbGridSize:'Размер сетки', lbColorMode:'Цветовая гамма',
+    lbShapeMode:'Наложенные фигуры', lbDiffLabel:'Сложность', btnSaveSett:'✓ Сохранить',
+    diffEasy:'Лёгкая', diffMed:'Средняя', diffHard:'Сложная',
+    lbStatsTitle:'Статистика', lbBest:'Лучшее время', lbAvg:'Среднее',
+    lbSessions:'Сессий', lbAcc:'Точность',
+    btnClearStats:'🗑 Сбросить', btnBackFromStats:'← Назад',
+    resTitle:'✅ Готово!', resSub:'Общее время',
+    resLbFound:'Найдено', resLbErrors:'Ошибок', resLbAcc:'Точность', resLbAvgFind:'Ср. на находку',
+    resContinue:'▶ Ещё раз', resHome:'← Домой',
+    modeBadgeTest:'ТЕСТ', modeBadgeGame:'ИГРА',
+    confirmClear:'Сбросить всю статистику?', noData:'Нет данных',
+    sessionLabel:'Сессия', gridLabel:'Сетка', errLabel:'ош.'
+  },
+  en: {
+    tagline:'Visual attention training',
+    mcTestTitle:'Test', mcTestDesc:'N cells — N finds. Result is saved.',
+    mcGameTitle:'Game', mcGameDesc:'Endless flow. Stop to save.',
+    btnSettings:'⚙️ Settings', btnStats:'📊 Statistics',
+    lbTimer:'Time', lbFound:'Found', lbErrors:'Errors',
+    lbFind:'Find the match →', btnBack:'← Back', btnStop:'⏹ Stop',
+    lbSettingsTitle:'Settings', lbGridSize:'Grid Size', lbColorMode:'Color Mode',
+    lbShapeMode:'Overlay Shapes', lbDiffLabel:'Difficulty', btnSaveSett:'✓ Save',
+    diffEasy:'Easy', diffMed:'Medium', diffHard:'Hard',
+    lbStatsTitle:'Statistics', lbBest:'Best Time', lbAvg:'Average',
+    lbSessions:'Sessions', lbAcc:'Accuracy',
+    btnClearStats:'🗑 Clear', btnBackFromStats:'← Back',
+    resTitle:'✅ Done!', resSub:'Total time',
+    resLbFound:'Found', resLbErrors:'Errors', resLbAcc:'Accuracy', resLbAvgFind:'Avg per find',
+    resContinue:'▶ Again', resHome:'← Home',
+    modeBadgeTest:'TEST', modeBadgeGame:'GAME',
+    confirmClear:'Clear all statistics?', noData:'No data',
+    sessionLabel:'Session', gridLabel:'Grid', errLabel:'err.'
+  }
+};
+function t(k) { return T[lang][k] || k; }
+function toggleLang() { lang = lang==='ru'?'en':'ru'; document.getElementById('langBtn').textContent = lang==='ru'?'EN':'RU'; applyLang(); }
+function applyLang() {
+  ['tagline','mcTestTitle','mcTestDesc','mcGameTitle','mcGameDesc','btnSettings','btnStats',
+   'lbTimer','lbFound','lbErrors','btnBack','btnStop','lbSettingsTitle','lbGridSize',
+   'lbColorMode','lbShapeMode','lbDiffLabel','btnSaveSett','diffEasy','diffMed','diffHard',
+   'lbStatsTitle','lbBest','lbAvg','lbSessions','lbAcc','btnClearStats','btnBackFromStats',
+   'resTitle','resSub','resLbFound','resLbErrors','resLbAcc','resLbAvgFind','resContinue','resHome'
+  ].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=t(id); });
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function setSetting(key,val,btn) { SETTINGS[key]=val; btn.closest('.toggle-group').querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+
+// ============================================================
+// GABOR MATH
+// ============================================================
+const ANGLES=[0,30,45,60,90,120,135,150];
+const FREQS=[0.055,0.085,0.12];
+const PHASES=[0,Math.PI/2];
+function randItem(a){return a[Math.floor(Math.random()*a.length)];}
+function randInt(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+
+function getPatchColor(mode) {
+  if(mode==='gray') return null;
+  let h; if(mode==='blue') h=randInt(210,250); else if(mode==='green') h=randInt(100,150); else if(mode==='red') h=randInt(350,380)%360; else h=randInt(0,359);
+  return `hsl(${h},${randInt(60,100)}%,${randInt(40,62)}%)`;
+}
+function getShapeColor(cm) { if(cm==='gray') return `hsl(0,0%,${randInt(20,65)}%)`; return `hsl(${randInt(0,359)},80%,52%)`; }
+function hslToRgb(h,s,l){s/=100;l/=100;const k=n=>(n+h/30)%12,a=s*Math.min(l,1-l),f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));return[f(0)*255,f(8)*255,f(4)*255];}
+function parseHsl(str){if(!str)return[128,128,128];const m=str.match(/hsl\((\d+),(\d+)%,(\d+)%\)/);return m?hslToRgb(+m[1],+m[2],+m[3]):[128,128,128];}
+
+function drawGabor(canvas,desc){
+  const ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height,cx=W/2,cy=H/2;
+  const sigma=W*0.22,freq=desc.freq,theta=desc.angle*Math.PI/180,phase=desc.phase;
+  const img=ctx.createImageData(W,H);const d=img.data;
+  const[cr,cg,cb]=parseHsl(desc.patchColor);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const dx=x-cx,dy=y-cy;
+    const xr=dx*Math.cos(theta)+dy*Math.sin(theta);
+    const yr=-dx*Math.sin(theta)+dy*Math.cos(theta);
+    const g=Math.exp(-(xr*xr+yr*yr)/(2*sigma*sigma));
+    const grat=Math.cos(2*Math.PI*freq*xr+phase);
+    const v=g*grat; const i=(y*W+x)*4;
+    if(desc.patchColor){const t=(v+1)/2;d[i]=cr*t+200*(1-t);d[i+1]=cg*t+200*(1-t);d[i+2]=cb*t+200*(1-t);}
+    else{const gv=Math.round(((v+1)/2)*255);d[i]=d[i+1]=d[i+2]=gv;}
+    d[i+3]=Math.round(g*255);
+  }
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);ctx.putImageData(img,0,0);
+  if(desc.shape&&desc.shape!=='none') drawShape(ctx,W,H,desc.shape,desc.shapeColor);
+}
+
+function drawShape(ctx,W,H,shape,color){
+  const cx=W/2,cy=H/2,r=W*0.34;
+  ctx.save();ctx.globalAlpha=0.45;ctx.fillStyle=color;ctx.beginPath();
+  if(shape==='circle'){ctx.arc(cx,cy,r,0,Math.PI*2);}
+  else if(shape==='square'){ctx.rect(cx-r,cy-r,r*2,r*2);}
+  else if(shape==='triangle'){ctx.moveTo(cx,cy-r);ctx.lineTo(cx+r*0.866,cy+r*0.75);ctx.lineTo(cx-r*0.866,cy+r*0.75);ctx.closePath();}
+  else if(shape==='star'){const pts=5,inn=r*0.4;for(let i=0;i<pts*2;i++){const rad=i%2===0?r:inn,a=(Math.PI/pts)*i-Math.PI/2;i===0?ctx.moveTo(cx+rad*Math.cos(a),cy+rad*Math.sin(a)):ctx.lineTo(cx+rad*Math.cos(a),cy+rad*Math.sin(a));}ctx.closePath();}
+  ctx.fill();ctx.globalAlpha=1;ctx.restore();
+}
+
+function getShape(mode){if(mode==='none')return'none';const s=['circle','square','triangle','star'];return mode==='all'?randItem(s):mode;}
+
+// DIFFICULTY: how many distractors share 1 or 2 params with target
+function createDescriptor(avoidMatch, targetDesc) {
+  const cm=SETTINGS.colorMode,sm=SETTINGS.shapeMode;
+  const diff=SETTINGS.difficulty;
+  let d,attempts=0;
+  do {
+    const angle=randItem(ANGLES),freq=randItem(FREQS),phase=randItem(PHASES);
+    const patchColor=getPatchColor(cm);
+    const shape=getShape(sm);
+    const shapeColor=sm!=='none'?getShapeColor(cm):'transparent';
+    d={angle,freq,phase,patchColor,shape,shapeColor};
+    attempts++;
+    if(!avoidMatch) break;
+    // must not be identical to target
+    if(!descriptorsMatch(d,targetDesc)) break;
+  } while(attempts<80);
+  return d;
+}
+
+function descriptorsMatch(a,b){return a.angle===b.angle&&a.freq===b.freq&&a.phase===b.phase&&a.patchColor===b.patchColor&&a.shape===b.shape&&a.shapeColor===b.shapeColor;}
+
+// ============================================================
+// GAME STATE
+// ============================================================
+let state = {
+  mode:'test', running:false, paused:false,
+  // timing
+  sessionStart:0, timerInterval:null, elapsedMs:0,
+  // test mode
+  totalCells:0, foundCount:0, errorCount:0,
+  // game mode: cumulative
+  gameFindTimes:[], gameErrors:0, gameLastFindTime:0,
+  // current grid state
+  targetDesc:null, matchIndex:-1, gridDescs:[], foundThisGrid:false
+};
+
+let history = JSON.parse(localStorage.getItem('gsSessions') || '[]');
+function saveHistory(){localStorage.setItem('gsSessions',JSON.stringify(history));}
+
+// ============================================================
+// SESSION START / STOP
+// ============================================================
+function startGame(mode) {
+  currentMode = mode;
+  state.mode = mode;
+  state.running = true;
+  state.foundCount = 0;
+  state.errorCount = 0;
+  state.gameFindTimes = [];
+  state.gameErrors = 0;
+  state.gameLastFindTime = 0;
+  state.foundThisGrid = false;
+
+  const n=SETTINGS.gridSize;
+  state.totalCells = n*n;
+
+  // UI mode setup
+  const badge=document.getElementById('modeBadge');
+  badge.textContent = t(mode==='test'?'modeBadgeTest':'modeBadgeGame');
+  badge.className = 'mode-badge ' + mode;
+  document.getElementById('progressWrap').style.display = mode==='test'?'block':'none';
+  document.getElementById('btnStop').style.display = mode==='game'?'inline-block':'none';
+  document.getElementById('btnBack').style.display = mode==='game'?'none':'inline-block';
+  document.getElementById('foundDisplay').textContent = '0';
+  document.getElementById('errorsDisplay').textContent = '0';
+
+  buildFindStrip();
+  showScreen('gameScreen');
+  buildAndRenderGrid();
+  startTimer();
+}
+
+function stopAndGoHome() {
+  stopTimer();
+  showScreen('homeScreen');
+}
+
+function stopAndSave() {
+  // game mode stop button
+  if(!state.running) return;
+  stopTimer();
+  state.running = false;
+  const totalMs = state.elapsedMs;
+  saveSession(totalMs);
+  showResult(totalMs);
+}
+
+// ============================================================
+// GRID: TEST MODE — one persistent grid per session
+// ============================================================
+function buildAndRenderGrid() {
+  const n=SETTINGS.gridSize,total=n*n;
+  const center=Math.floor(total/2);
+
+  // In TEST mode: build one grid, find ALL (n*n - 1 non-center) pairs... 
+  // Actually: the task is to find THE ONE matching pair per "sub-round"
+  // Each correct tap: mark that cell as found, update center target to a new one,
+  // place new match somewhere in remaining unfound cells.
+  // Session ends when foundCount === totalCells (all non-center cells have been found 1 time each)
+  // Wait — re-read spec: "9 клеточек — 9 выборов"
+  // So: total cells = n*n. We need (n*n) finds total (including the center counts as #1? No.)
+  // Simplest interpretation: session = n*n CORRECT finds (each generates a new target+match in the same grid)
+  // Grid stays the same visually but each time a match is found → that cell dims, new target appears, new match placed among undimmed cells
+  // When all non-center cells are dimmed (n*n - 1 finds) → session done
+
+  const target=createDescriptor(false, null);
+  state.targetDesc=target;
+
+  // place match in random non-center cell
+  let matchIdx; do { matchIdx=randInt(0,total-1); } while(matchIdx===center);
+  state.matchIndex=matchIdx;
+
+  // build all cell descriptors
+  const descs=[];
+  for(let i=0;i<total;i++){
+    if(i===center||i===matchIdx) descs.push({...target});
+    else descs.push(createDescriptor(true,target));
+  }
+  state.gridDescs=descs;
+  state.foundThisGrid=false;
+  renderGrid(false); // false = full re-render
+}
+
+// After a correct find: dim found cell, pick new target, place new match in remaining cells
+function updateGridAfterFind(foundIdx) {
+  const n=SETTINGS.gridSize,total=n*n,center=Math.floor(total/2);
+
+  // Get all non-center, non-dimmed cell indices
+  const cells=document.querySelectorAll('.grid-cell');
+  const available=[];
+  for(let i=0;i<total;i++){
+    if(i===center) continue;
+    if(i===foundIdx) continue; // just found, will be dimmed
+    if(cells[i] && cells[i].classList.contains('found')) continue;
+    available.push(i);
+  }
+
+  if(available.length===0) {
+    // All found — session complete
+    return false;
+  }
+
+  // New target (different from previous, avoid easy repeat)
+  const newTarget=createDescriptor(false,null);
+  state.targetDesc=newTarget;
+
+  // Place match in one of available cells
+  const matchIdx=available[Math.floor(Math.random()*available.length)];
+  state.matchIndex=matchIdx;
+
+  // Regenerate descriptors for all non-dimmed, non-center cells
+  // (keep dimmed ones as-is, they're hidden)
+  for(let i=0;i<total;i++){
+    if(i===center){ state.gridDescs[i]={...newTarget}; continue; }
+    if(cells[i] && cells[i].classList.contains('found')) continue;
+    if(i===matchIdx){ state.gridDescs[i]={...newTarget}; }
+    else { state.gridDescs[i]=createDescriptor(true,newTarget); }
+  }
+
+  // Re-draw canvases (keep dimmed cells dimmed)
+  for(let i=0;i<total;i++){
+    if(cells[i] && cells[i].classList.contains('found')) continue;
+    const canvas=cells[i].querySelector('canvas');
+    if(canvas) drawGabor(canvas,state.gridDescs[i]);
+  }
+
+  return true;
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function getCellSize(){
+  const vw=Math.min(window.innerWidth,480);
+  const n=SETTINGS.gridSize;
+  return Math.floor((vw-32-6*(n-1))/n);
+}
+
+function renderGrid(partialUpdate){
+  const n=SETTINGS.gridSize,total=n*n,center=Math.floor(total/2);
+  const cs=getCellSize();
+  const container=document.getElementById('gridContainer');
+  container.style.gridTemplateColumns=`repeat(${n},${cs}px)`;
+
+  if(!partialUpdate) {
+    container.innerHTML='';
+    for(let i=0;i<total;i++){
+      const cell=document.createElement('div');
+      cell.className='grid-cell'+(i===center?' center-cell':'');
+      cell.style.width=cs+'px'; cell.style.height=cs+'px';
+      const canvas=document.createElement('canvas');
+      canvas.width=canvas.height=cs;
+      drawGabor(canvas,state.gridDescs[i]);
+      cell.appendChild(canvas);
+      if(i!==center){ const idx=i; cell.addEventListener('click',()=>handleTap(idx)); cell.addEventListener('touchstart',(e)=>{e.preventDefault();handleTap(idx);},{passive:false}); }
+      container.appendChild(cell);
+    }
+  }
+
+}
+
+// ============================================================
+// FIND STRIP (dots showing progress)
+// ============================================================
+function buildFindStrip(){
+  const strip=document.getElementById('findStrip');
+  strip.innerHTML='';
+  const n=SETTINGS.gridSize,needed=n*n-1;
+  // show max 25 dots to keep it clean
+  const show=Math.min(needed,25);
+  for(let i=0;i<show;i++){
+    const dot=document.createElement('div');
+    dot.className='find-dot';
+    dot.id=`dot_${i}`;
+    strip.appendChild(dot);
+  }
+}
+
+function updateFindDot(idx,type){
+  const dot=document.getElementById(`dot_${idx}`);
+  if(dot) dot.className='find-dot '+type;
+}
+
+// ============================================================
+// TAP HANDLER
+// ============================================================
+function handleTap(idx){
+  if(!state.running) return;
+
+  if(idx===state.matchIndex){
+    // CORRECT FIND
+    const now=Date.now();
+    const findTime=state.gameLastFindTime>0 ? (now-state.gameLastFindTime)/1000 : (now-state.sessionStart)/1000;
+    state.gameLastFindTime=now;
+
+    state.gameFindTimes.push(findTime);
+    state.foundCount++;
+
+    document.getElementById('foundDisplay').textContent=state.foundCount;
+    updateFindDot(state.foundCount-1,'done');
+
+    const cells=document.querySelectorAll('.grid-cell');
+    cells[idx].classList.add('flash-correct');
+    setTimeout(()=>{
+      cells[idx].classList.add('found');
+      cells[idx].classList.remove('flash-correct');
+    },300);
+
+    // update progress bar (test mode)
+    const needed=SETTINGS.gridSize*SETTINGS.gridSize-1;
+    document.getElementById('progressBar').style.width=((state.foundCount/needed)*100)+'%';
+
+    // Check if session complete
+    if(state.foundCount >= needed){
+      // ALL FOUND
+      setTimeout(()=>finishSession(),350);
+    } else {
+      // Update grid with new target & match
+      setTimeout(()=>updateGridAfterFind(idx), 200);
+    }
+  } else {
+    // WRONG
+    state.errorCount++;
+    document.getElementById('errorsDisplay').textContent=state.errorCount;
+    const cells=document.querySelectorAll('.grid-cell');
+    cells[idx].classList.add('flash-wrong');
+    setTimeout(()=>cells[idx].classList.remove('flash-wrong'),350);
+  }
+}
+
+// ============================================================
+// FINISH / SAVE
+// ============================================================
+function finishSession(){
+  if(!state.running) return;
+  stopTimer();
+  state.running=false;
+  const totalMs=state.elapsedMs;
+  saveSession(totalMs);
+  showResult(totalMs);
+}
+
+function saveSession(totalMs){
+  const rec={
+    ts: Date.now(),
+    mode: state.mode,
+    gridSize: SETTINGS.gridSize,
+    totalMs: totalMs,
+    found: state.foundCount,
+    errors: state.errorCount,
+    findTimes: [...state.gameFindTimes],
+    needed: SETTINGS.gridSize*SETTINGS.gridSize-1
+  };
+  history.unshift(rec);
+  if(history.length>300) history=history.slice(0,300);
+  saveHistory();
+}
+
+function showResult(totalMs){
+  const needed=SETTINGS.gridSize*SETTINGS.gridSize-1;
+  const totalSec=totalMs/1000;
+  const acc=state.foundCount>0 ? Math.round((state.foundCount/(state.foundCount+state.errorCount))*100) : 0;
+  const avgFind=state.gameFindTimes.length>0 ? (state.gameFindTimes.reduce((a,b)=>a+b,0)/state.gameFindTimes.length) : 0;
+
+  document.getElementById('resTitle').textContent = t('resTitle');
+  document.getElementById('resBigTime').textContent = formatTime(totalSec);
+  document.getElementById('resSub').textContent = t('resSub');
+  document.getElementById('resLbFound').textContent = t('resLbFound');
+  document.getElementById('resLbErrors').textContent = t('resLbErrors');
+  document.getElementById('resLbAcc').textContent = t('resLbAcc');
+  document.getElementById('resLbAvgFind').textContent = t('resLbAvgFind');
+  document.getElementById('resFound').textContent = `${state.foundCount} / ${needed}`;
+  document.getElementById('resErrors').textContent = state.errorCount;
+  document.getElementById('resAcc').textContent = acc + '%';
+  document.getElementById('resAvgFind').textContent = avgFind>0 ? avgFind.toFixed(2)+'с' : '—';
+  document.getElementById('resContinue').textContent = t('resContinue');
+  document.getElementById('resHome').textContent = t('resHome');
+  document.getElementById('resultOverlay').classList.add('show');
+}
+
+function closeResult(goHome){
+  document.getElementById('resultOverlay').classList.remove('show');
+  if(goHome){ showScreen('homeScreen'); }
+  else { startGame(currentMode); }
+}
+
+function formatTime(s){
+  if(s>=60){const m=Math.floor(s/60),sec=Math.round(s%60);return`${m}:${sec<10?'0':''}${sec}`;}
+  return s.toFixed(1)+'с';
+}
+
+// ============================================================
+// TIMER
+// ============================================================
+function startTimer(){
+  state.sessionStart=Date.now();
+  state.gameLastFindTime=state.sessionStart;
+  state.elapsedMs=0;
+  clearInterval(state.timerInterval);
+  state.timerInterval=setInterval(()=>{
+    state.elapsedMs=Date.now()-state.sessionStart;
+    document.getElementById('timerDisplay').textContent=(state.elapsedMs/1000).toFixed(1);
+  },100);
+}
+function stopTimer(){ clearInterval(state.timerInterval); }
+
+// ============================================================
+// STATS
+// ============================================================
+function renderHistory(){
+  const valid=history.filter(r=>r.found>0);
+  const times=valid.map(r=>r.totalMs/1000);
+  const best=times.length?Math.min(...times):null;
+  const avg=times.length?times.reduce((a,b)=>a+b,0)/times.length:null;
+  const totalAcc=history.reduce((s,r)=>s+(r.found/(r.found+r.errors)||0),0)/(history.length||1);
+
+  document.getElementById('statBest').textContent=best?formatTime(best):'—';
+  document.getElementById('statAvg').textContent=avg?formatTime(avg):'—';
+  document.getElementById('statSessions').textContent=history.length;
+  document.getElementById('statAcc').textContent=history.length?Math.round(totalAcc*100)+'%':'—';
+
+  drawHistoryChart();
+  renderSessionList();
+}
+
+function drawHistoryChart(){
+  const canvas=document.getElementById('historyCanvas');
+  const W=canvas.offsetWidth||340; canvas.width=W; canvas.height=160;
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#16213e'; ctx.fillRect(0,0,W,160);
+
+  const valid=history.filter(r=>r.found>0).slice(0,30).reverse();
+  if(valid.length<2){ctx.fillStyle='#a0a0c0';ctx.font='14px sans-serif';ctx.textAlign='center';ctx.fillText(t('noData'),W/2,80);return;}
+
+  const times=valid.map(r=>r.totalMs/1000);
+  const mn=Math.min(...times)*0.9,mx=Math.max(...times)*1.1;
+  const py=v=>160-20-((v-mn)/(mx-mn))*(160-40);
+  const px=i=>10+(i/(valid.length-1))*(W-20);
+
+  ctx.strokeStyle='#1e3a5f';ctx.lineWidth=1;
+  [0,1,2,3].forEach(g=>{const y=20+g*35;ctx.beginPath();ctx.moveTo(10,y);ctx.lineTo(W-10,y);ctx.stroke();});
+
+  ctx.strokeStyle='#e94560';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.beginPath();
+  valid.forEach((r,i)=>{const x=px(i),y=py(r.totalMs/1000);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  ctx.stroke();
+
+  valid.forEach((r,i)=>{
+    const x=px(i),y=py(r.totalMs/1000);
+    ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fillStyle='#e94560';ctx.fill();
+    ctx.fillStyle='#eee';ctx.font='9px sans-serif';ctx.textAlign='center';
+    ctx.fillText(formatTime(r.totalMs/1000),x,y-8);
+  });
+}
+
+function renderSessionList(){
+  const list=document.getElementById('sessionList');
+  list.innerHTML='';
+  history.slice(0,50).forEach((r,i)=>{
+    const div=document.createElement('div');div.className='session-item';
+    const d=new Date(r.ts);const dateStr=`${d.getDate()}.${d.getMonth()+1} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const num=document.createElement('span');num.className='session-num';num.textContent=`${dateStr} · ${r.gridSize}×${r.gridSize}`;
+    const time=document.createElement('span');time.className='session-time';time.textContent=formatTime(r.totalMs/1000);
+    const meta=document.createElement('span');meta.className='session-meta';
+    const acc=r.found>0?Math.round((r.found/(r.found+r.errors))*100):0;
+    meta.textContent=`${r.found}✓ ${r.errors}✗ ${acc}%`;
+    div.appendChild(num);div.appendChild(time);div.appendChild(meta);
+    list.appendChild(div);
+  });
+}
+
+function clearStats(){
+  if(confirm(t('confirmClear'))){history=[];saveHistory();renderHistory();}
+}
+
+// ============================================================
+// RESPONSIVE
+// ============================================================
+window.addEventListener('resize',()=>{
+  if(document.getElementById('gameScreen').classList.contains('active')) renderGrid(false);
+});
+
+applyLang();
+</script>
+
+<script>
+
+
+// ============================================================
+// PWA: Service Worker
+// ============================================================
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js', {scope: './'})
+    .then(reg => console.log('[SW] registered', reg.scope))
+    .catch(err => console.warn('[SW] failed:', err));
+}
+
+// ============================================================
+// PWA: iOS Install Banner
+// ============================================================
+window.addEventListener('load', () => {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isInStandalone = window.navigator.standalone;
+  const dismissed = localStorage.getItem('pwa-banner-dismissed');
+  if (isIOS && !isInStandalone && !dismissed) {
+    setTimeout(() => {
+      const banner = document.createElement('div');
+      banner.id = 'ios-install-banner';
+      banner.style.cssText = `
+        position:fixed; bottom:0; left:0; right:0; z-index:9999;
+        background:#0f3460; color:#eaeaea; padding:14px 16px 24px;
+        font-family:system-ui,sans-serif; font-size:14px;
+        display:flex; align-items:center; gap:12px;
+        box-shadow:0 -4px 20px rgba(0,0,0,0.5);
+        animation: slideUp 0.4s ease-out;
+      `;
+      banner.innerHTML = \`
+        <span style="font-size:2rem">🔬</span>
+        <div style="flex:1">
+          <div style="font-weight:700;margin-bottom:3px">Установить приложение</div>
+          <div style="color:#a0a0c0;font-size:12px">Нажмите <b style="color:#eaeaea">Поделиться</b> → <b style="color:#eaeaea">На экран «Домой»</b></div>
+        </div>
+        <button onclick="document.getElementById('ios-install-banner').remove();localStorage.setItem('pwa-banner-dismissed','1')"
+          style="background:none;border:none;color:#a0a0c0;font-size:20px;cursor:pointer;padding:4px">✕</button>
+      \`;
+      const style = document.createElement('style');
+      style.textContent = '@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}';
+      document.head.appendChild(style);
+      document.body.appendChild(banner);
+    }, 2000);
+  }
+
+  // Android/Desktop install prompt
+  let deferredPrompt;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (localStorage.getItem('pwa-installed')) return;
+    const btn = document.createElement('button');
+    btn.textContent = '📲 Установить приложение';
+    btn.style.cssText = \`
+      position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+      z-index:9999; background:#e94560; color:white; border:none;
+      border-radius:24px; padding:12px 24px; font-size:14px; font-weight:600;
+      cursor:pointer; box-shadow:0 4px 20px rgba(233,69,96,0.5);
+      white-space:nowrap;
+    \`;
+    btn.onclick = async () => {
+      deferredPrompt.prompt();
+      const {outcome} = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') localStorage.setItem('pwa-installed','1');
+      btn.remove();
+    };
+    document.body.appendChild(btn);
+    setTimeout(() => { if(document.body.contains(btn)) btn.remove(); }, 15000);
+  });
+});
+</script>
+</body>
+</html>
